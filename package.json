@@ -1,0 +1,15 @@
+{
+  "name": "todoman",
+  "version": "1.0.0",
+  "description": "simple cli todo list manager for productivity",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "todo",
+    "productivity"
+  ],
+  "author": "greggry",
+  "license": "ISC"
+}

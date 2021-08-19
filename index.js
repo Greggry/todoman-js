@@ -46,7 +46,8 @@ class TodoList {
     return (async () => {
       try {
         // load the todoList
-        const fileHandle = await fs.open(filename, 'r');
+
+        const fileHandle = await fs.open(filename, 'a+'); // open for appending and reading so the file is created if it doesn't exist
         this.todoListContents = await fileHandle.readFile({ encoding: 'utf-8' });
         fileHandle.close();
       } catch (e) {
@@ -142,8 +143,6 @@ class TodoList {
       case 'undone':
       case 'done':
         const lineNumberToMark = await prompt('Number of the todo to check/uncheck: ');
-        console.log(todoList.todoListContents.trim().split('\n'));
-        // TODO remake the numbering to be done internally within the program
         const lineStringToMark = todoList.todoListContents.trim().split('\n')[lineNumberToMark]; // assuming we start todos from 0
 
         if (!lineStringToMark) await prompt('Argument out of range.');

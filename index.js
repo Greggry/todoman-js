@@ -74,8 +74,8 @@ class TodoList {
     fileContents
       .trim()
       .split('\n')
-      .forEach(line => {
-        if (line === '') return; // case when the file is empty
+      .forEach((line, i) => {
+        if (line === '') return; // line / file empty
 
         const lastHashIndex = line.lastIndexOf('#');
 
@@ -83,6 +83,18 @@ class TodoList {
         const isDone = line[1] === 'x' ? true : false;
         const task = line.substring(4, lastHashIndex - 1);
         const date = new Date(line.substring(lastHashIndex));
+
+        try {
+          if (
+            line.search(/\[[ x]\]/) === -1 ||
+            date.toString().toLowerCase() === 'invalid date' ||
+            lastHashIndex === -1
+          )
+            throw new Error(`Import Error in line ${i + 1}: '${line}' cannot be imported`);
+        } catch (e) {
+          console.log(e.message);
+          process.exit(1);
+        }
 
         todoList.push({ isDone, task, date });
       });
@@ -130,7 +142,6 @@ class TodoList {
 
   markTodo(todo) {
     todo.isDone = !todo.isDone;
-    console.log(todo);
   }
 
   deleteTodo(todo) {

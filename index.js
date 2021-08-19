@@ -1,5 +1,6 @@
 const readline = require('readline');
 const fs = require('fs/promises');
+const path = require('path');
 
 const rl = readline.createInterface({
   input: process.stdin,
@@ -42,6 +43,8 @@ class TodoList {
   constructor(filename) {
     this.todoFileName = filename;
 
+    console.log(filename);
+
     return (async () => {
       try {
         // load the todoList
@@ -61,13 +64,7 @@ class TodoList {
   }
 
   initTodoList(fileContents) {
-    // structure
-    /* todoList = [
-      {item1Time, item1State, item1Task},
-      {item2Time, item2State, item2Task},
-    ]
-    */
-
+    // an array of objects for each todo
     const todoList = [];
 
     // loop over the string list and add to the returned array
@@ -163,8 +160,31 @@ const getTodoByNumber = async (reasonString, todoArray) => {
   return todo;
 };
 
+const handleDirCheck = async dirName => {
+  try {
+    await fs.access(dirName);
+  } catch (e) {
+    if (e.code === 'ENOENT') fs.mkdir(path.join(__dirname, dirName));
+  }
+};
+
+padDates = num => num.toString().padStart(2, '0');
+
+// store files in __dirname/DIRNAME/FILENAME
+const DIRNAME = 'todos';
+const FILENAME = (() => {
+  const date = new Date();
+
+  const month = padDates(date.getMonth() + 1); // zero based
+  const dayOfMonth = padDates(date.getDate());
+
+  return (formattedDate = `${date.getFullYear()}-${month}-${dayOfMonth}.txt`);
+})();
+
 (async () => {
-  const todoList = await new TodoList('todo.txt');
+  await handleDirCheck(DIRNAME); // create the todos directory if not present
+
+  const todoList = await new TodoList(path.join(__dirname, DIRNAME, FILENAME));
 
   while (true) {
     console.clear();

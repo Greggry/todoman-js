@@ -24,10 +24,10 @@ function wait(seconds) {
 }
 
 const OPTIONS = `
-1. [n]ew todo
-2. [x] mark done/undone
-3. [d]elete
-4. [q]uit`;
+(n)ew todo
+(x) tick/untick
+(d)elete
+(q)uit`;
 
 const format = string => string.toLowerCase().trim();
 
@@ -113,7 +113,7 @@ class TodoList {
     console.log(`${this.heading}`);
 
     this.todoList.forEach((todo, i) => {
-      console.log(`${i}: [${todo.isDone ? 'x' : ' '}] ${todo.task}`);
+      console.log(`${i + 1}: [${todo.isDone ? 'x' : ' '}] ${todo.task}`);
     });
   }
 
@@ -159,7 +159,7 @@ class TodoList {
 
 const getTodoByNumber = async (reasonString, todoArray) => {
   const number = await prompt(`Number of the todo to ${reasonString}: `);
-  const todo = todoArray[number];
+  const todo = todoArray[number - 1]; // the user sees 1-indexed list
 
   if (!todo) {
     await prompt('Argument out of range.');
@@ -203,31 +203,18 @@ const FILENAME = (() => {
     if (isAnyFormattedOutputMatching(format(answer), '4', '4.', 'quit', 'q')) break;
 
     switch (format(answer)) {
-      case '1':
-      case '1.':
-      case 'new':
-      case 'todo':
       case 'n':
         const task = await prompt('Task for the new todo: ');
         todoList.newTodo(task);
         break;
 
-      case '2':
-      case '2.':
-      case 'mark':
-      case 'done':
-      case 'undone':
-      case 'done':
       case 'x':
-        const toMark = await getTodoByNumber('check/uncheck', todoList.todoList);
+        const toMark = await getTodoByNumber('tick/untick', todoList.todoList);
 
         if (toMark) todoList.markTodo(toMark);
 
         break;
 
-      case '3':
-      case '3.':
-      case 'delete':
       case 'd':
         const toDelete = await getTodoByNumber('delete', todoList.todoList);
 

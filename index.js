@@ -171,7 +171,7 @@ const getTodoByNumber = async (reasonString, todoArray) => {
 
 const handleDirCheck = async dirName => {
   try {
-    await fs.access(dirName);
+    await fs.access(path.join(__dirname, dirName));
   } catch (e) {
     if (e.code === 'ENOENT') fs.mkdir(path.join(__dirname, dirName));
   }

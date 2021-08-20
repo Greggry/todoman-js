@@ -38,17 +38,21 @@ const isAnyFormattedOutputMatching = (valueToCompareWith, ...args) => {
 };
 
 class TodoList {
+  date;
+  timezone;
   todoFileName;
 
-  constructor(filename) {
+  constructor(filename, date) {
+    this.date = date;
     this.todoFileName = filename;
 
-    console.log(filename);
+    this.timezone = date.toTimeString().substring(9, 17); // GMT+XXXX
+
+    this.heading = `${this.date.toDateString()} - ${this.timezone}`;
 
     return (async () => {
       try {
         // load the todoList
-
         const fileHandle = await fs.open(filename, 'a+'); // open for appending and reading so the file is created if it doesn't exist
         const fileContents = await fileHandle.readFile({ encoding: 'utf-8' });
         fileHandle.close();
@@ -72,14 +76,16 @@ class TodoList {
       .trim()
       .split('\n')
       .forEach((line, i) => {
-        if (line === '') return; // line / file empty
+        if (line === '' || i === 0) return; // the first line contains just the date
 
         const lastHashIndex = line.lastIndexOf('#');
 
         // format: '[x] some task # mm/dd/yyyy, hh:mm:mm AM/PM'
         const isDone = line[1] === 'x' ? true : false;
         const task = line.substring(4, lastHashIndex - 1);
-        const date = new Date(line.substring(lastHashIndex));
+        const date = new Date(
+          `${this.date.toDateString()} ${line.substring(lastHashIndex + 2).trim()} ${this.timezone}`
+        );
 
         try {
           if (
@@ -104,6 +110,7 @@ class TodoList {
       console.log('no todo items');
       return;
     }
+    console.log(`${this.heading}`);
 
     this.todoList.forEach((todo, i) => {
       console.log(`${i}: [${todo.isDone ? 'x' : ' '}] ${todo.task}`);
@@ -112,16 +119,18 @@ class TodoList {
 
   saveFile() {
     // save the current todos as a readable string
-    const stringToWrite = this.todoList.reduce((acc, todo) => {
-      return acc + `[${todo.isDone ? 'x' : ' '}] ${todo.task} # ${todo.date}\n`;
-    }, '');
+    const todoString = this.todoList.reduce((acc, todo) => {
+      return (
+        acc + `[${todo.isDone ? 'x' : ' '}] ${todo.task} # ${todo.date.toTimeString().substring(0, 9)}\n`
+      );
+    }, `${this.heading}\n`);
 
     return (async () => {
       try {
         // load the todoList
         const fileHandle = await fs.open(this.todoFileName, 'w');
 
-        fileHandle.writeFile(stringToWrite);
+        fileHandle.writeFile(todoString);
 
         fileHandle.close();
       } catch (e) {
@@ -150,7 +159,7 @@ class TodoList {
 
 const getTodoByNumber = async (reasonString, todoArray) => {
   const number = await prompt(`Number of the todo to ${reasonString}: `);
-  const todo = todoArray[number]; // assuming we start todos from 0
+  const todo = todoArray[number];
 
   if (!todo) {
     await prompt('Argument out of range.');
@@ -170,21 +179,21 @@ const handleDirCheck = async dirName => {
 
 padDates = num => num.toString().padStart(2, '0');
 
+const currentDate = new Date();
+
 // store files in __dirname/DIRNAME/FILENAME
 const DIRNAME = 'todos';
 const FILENAME = (() => {
-  const date = new Date();
+  const month = padDates(currentDate.getMonth() + 1); // zero based
+  const dayOfMonth = padDates(currentDate.getDate());
 
-  const month = padDates(date.getMonth() + 1); // zero based
-  const dayOfMonth = padDates(date.getDate());
-
-  return (formattedDate = `${date.getFullYear()}-${month}-${dayOfMonth}.txt`);
+  return (formattedDate = `${currentDate.getFullYear()}-${month}-${dayOfMonth}.txt`);
 })();
 
 (async () => {
   await handleDirCheck(DIRNAME); // create the todos directory if not present
 
-  const todoList = await new TodoList(path.join(__dirname, DIRNAME, FILENAME));
+  const todoList = await new TodoList(path.join(__dirname, DIRNAME, FILENAME), currentDate);
 
   while (true) {
     console.clear();

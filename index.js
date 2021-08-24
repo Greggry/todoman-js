@@ -71,6 +71,9 @@ class TodoList {
     // an array of objects for each todo
     const todoList = [];
 
+    // when a line is detected as a parent line, an object will be pushed indicating how many objects after it are its children
+    const parentsChildrenGroups = [];
+
     // loop over the string list and add to the returned array
     fileContents
       .trim()
@@ -87,6 +90,7 @@ class TodoList {
           `${this.date.toDateString()} ${line.substring(lastHashIndex + 2).trim()} ${this.timezone}`
         );
 
+        // validation
         try {
           if (
             line.search(/\[[ x]\]/) === -1 ||
@@ -99,21 +103,51 @@ class TodoList {
           process.exit(1);
         }
 
-        todoList.push({ isDone, task, date });
+        // building the object
+        const todo = { isDone, task, date }; // expanded if it belongs to or forms a list
+
+        // it's a parent todo
+        if (line[4] === '+') {
+          const subtasksNum = this.getSubtasksQuantity(line.substring(4));
+
+          parentsChildrenGroups.push({ parent: todo, subtasksNum });
+        }
+
+        todoList.push(todo);
       });
 
     this.todoList = todoList;
+    this.linkSubtasks(parentsChildrenGroups);
+  }
+
+  linkSubtasks(parentsChildrenGroups) {
+    parentsChildrenGroups.forEach(group => {
+      const parentIndex = this.todoList.findIndex(item => group.parent === item);
+      const parent = this.todoList[parentIndex];
+
+      parent.children = [];
+
+      [...Array(group.subtasksNum).keys()].forEach(key => {
+        const child = this.todoList[parentIndex + key + 1];
+
+        parent.children.push(child);
+        child.isSubtask = true;
+      });
+    });
   }
 
   log() {
+    console.log(`${this.heading}`);
+
     if (this.todoList.length === 0) {
       console.log('no todo items');
       return;
     }
-    console.log(`${this.heading}`);
 
     this.todoList.forEach((todo, i) => {
-      console.log(`${i + 1}: [${todo.isDone ? 'x' : ' '}] ${todo.task}`);
+      const indent = todo.isSubtask ? '\t' : ' ';
+
+      console.log(`${i + 1}:${indent}[${todo.isDone ? 'x' : ' '}] ${todo.task}`);
     });
   }
 
@@ -141,17 +175,78 @@ class TodoList {
   }
 
   newTodo(task) {
+    // parent = not a subtask
+    const pushParentTodo = children => {
+      const parentTodo = { isDone: false, task, date, children };
+
+      this.todoList.push(parentTodo);
+    };
+
     const date = new Date();
 
-    this.todoList.push({ isDone: false, task, date });
+    // todo category logic (for when the string is '+ 10 example todo')
+    if (task[0] === '+') {
+      const subtaskNum = this.getSubtasksQuantity(task);
+
+      console.log(subtaskNum);
+
+      const subtaskArray = [];
+      pushParentTodo(subtaskArray);
+
+      // push subtasks
+      [...Array(subtaskNum).keys()].forEach(key => {
+        const subtask = {
+          isDone: false,
+          task: `${key + 1}/${subtaskNum} ${task}`,
+          date,
+          isSubtask: true,
+        };
+
+        subtaskArray.push(subtask);
+        this.todoList.push(subtask);
+      });
+
+      return;
+    }
+
+    pushParentTodo();
+  }
+
+  getSubtasksQuantity(parent) {
+    return +parent.replace(/(^[\+]\s*)(\d+)(.+$)/g, '$2'); // group and get the numbers after the +, coerce to a number
   }
 
   markTodo(todo) {
+    if (todo.children) return;
+
     todo.isDone = !todo.isDone;
+
+    if (todo.isSubtask) {
+      // subtract indexes and find the closest non-negative, which is the parent
+      const todoIndex = this.todoList.findIndex(item => item === todo);
+
+      const parent = this.todoList.reduce((acc, item, i) => {
+        if (!item.hasOwnProperty('children')) return acc; // ignore non-parent elements
+        if (todoIndex - i < 0) return acc; // ignore elements further in the array
+
+        // because we're looping from left to right the last parent is the correct one
+        return item;
+      });
+
+      const isEachChildDone = parent.children.every(child => {
+        return child.isDone === true;
+      });
+
+      parent.isDone = isEachChildDone;
+    }
   }
 
   deleteTodo(todo) {
+    if (todo.isSubtask) return;
     const index = this.todoList.findIndex(listItem => listItem === todo);
+
+    // it's a parent - remove subtasks
+    todo.children?.forEach(child => this.todoList.splice(this.todoList.indexOf(child), 1));
 
     this.todoList.splice(index, 1); // remove the element
   }
@@ -159,7 +254,7 @@ class TodoList {
 
 const getTodoByNumber = async (reasonString, todoArray) => {
   const number = await prompt(`Number of the todo to ${reasonString}: `);
-  const todo = todoArray[number - 1]; // the user sees 1-indexed list
+  const todo = todoArray[number - 1]; // the user sees a 1-indexed list
 
   if (!todo) {
     await prompt('Argument out of range.');
@@ -196,7 +291,7 @@ const FILENAME = (() => {
   const todoList = await new TodoList(path.join(__dirname, DIRNAME, FILENAME), currentDate);
 
   while (true) {
-    console.clear();
+    // console.clear(); DEBUG
     todoList.log();
 
     const answer = await prompt(`${OPTIONS}\n: `);
